@@ -29,9 +29,12 @@ func main() {
 		log.Fatal("error connecting to the database: ", err)
 	}
 
-	// Create the "accounts" table.
 	if _, err := db.Exec(
 		"CREATE TABLE IF NOT EXISTS feeds (id INT PRIMARY KEY, domain string, feedurl string, lastfetch TIMESTAMPTZ,lastHash string)"); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := db.Exec(
+		"CREATE TABLE IF NOT EXISTS feeditems (id INT PRIMARY KEY, feedid int, hash string, published TIMESTAMPTZ, title string, summary string, content string)"); err != nil {
 		log.Fatal(err)
 	}
 
