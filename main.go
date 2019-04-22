@@ -31,7 +31,7 @@ func main() {
 
 	// Create the "accounts" table.
 	if _, err := db.Exec(
-		"CREATE TABLE IF NOT EXISTS feeds (id INT PRIMARY KEY, domain string, feedurl string, lastfetch TIMESTAMPTZ,lastHash string ,lastContent string)"); err != nil {
+		"CREATE TABLE IF NOT EXISTS feeds (id INT PRIMARY KEY, domain string, feedurl string, lastfetch TIMESTAMPTZ,lastHash string)"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -136,7 +136,10 @@ func iterateOverCurrentFeeds(db *sql.DB, feeds []feed) {
 func crawlFeed(db *sql.DB, oneFeed feed) {
 	timeGetTMP := time.Now()
 	fp := gofeed.NewParser()
-	feedData, _ := fp.ParseURL(oneFeed.feedurl)
+	feedData, err := fp.ParseURL(oneFeed.feedurl)
+	if err != nil {
+		return
+	}
 	timeGet := time.Since(timeGetTMP)
 
 	start := time.Now()
@@ -152,9 +155,19 @@ func crawlFeed(db *sql.DB, oneFeed feed) {
 	io.WriteString(h, content)
 	hash := hex.EncodeToString(h.Sum(nil))
 	if _, err := db.Exec(
-		"UPDATE feeds SET (lastfetch ,lastHash ,lastContent) = (now(), $1 ,$2 ) WHERE id = $3", hash, content, strconv.FormatInt(oneFeed.id, 10)); err != nil {
+		"UPDATE feeds SET (lastfetch ,lastHash) = (now(), $1) WHERE id = $2", hash, strconv.FormatInt(oneFeed.id, 10)); err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("\nTIME TO GET AND PARSE--> ", timeGet, " TIME TO hash and Insert:", oneFeed.domain, "-->", time.Since(start), "  HASH -->", hash)
+	insertArticleIntoDatabase(db, feedData, oneFeed)
+}
+
+func insertArticleIntoDatabase(db *sql.DB, feedData *gofeed.Feed, oneFeed feed) {
+	if feedData.Items == nil || len(feedData.Items) < 1 {
+		return
+	}
+	for index := 0; index < len(feedData.Items); index++ {
+		fmt.Println("TITLE_>", feedData.Items[index].Title)
+	}
 }
